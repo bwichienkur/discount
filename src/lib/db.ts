@@ -18,20 +18,20 @@ function storePath() {
   if (process.env.DATABASE_PATH) {
     return path.isAbsolute(process.env.DATABASE_PATH)
       ? process.env.DATABASE_PATH
-      : path.join(process.cwd(), process.env.DATABASE_PATH);
+      : path.join(/* turbopackIgnore: true */ process.cwd(), process.env.DATABASE_PATH);
   }
   // Vercel serverless FS is read-only except /tmp
   if (process.env.VERCEL) {
     return path.join("/tmp", "opendoor-store.json");
   }
-  return path.join(process.cwd(), "data", "opendoor-store.json");
+  return path.join(/* turbopackIgnore: true */ process.cwd(), "data", "opendoor-store.json");
 }
 
 function readStoreFromDisk(): StoreData | null {
   const file = storePath();
   try {
-    if (!fs.existsSync(file)) return null;
-    const raw = fs.readFileSync(file, "utf8");
+    if (!fs.existsSync(/* turbopackIgnore: true */ file)) return null;
+    const raw = fs.readFileSync(/* turbopackIgnore: true */ file, "utf8");
     return JSON.parse(raw) as StoreData;
   } catch {
     return null;
