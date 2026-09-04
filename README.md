@@ -65,14 +65,6 @@ On Vercel, data is seeded automatically. Admin writes use `/tmp` (ephemeral acro
 - **businesses** — name, category, address, coords, contact, region
 - **offers** — title, description, free / discount %, dates, eligibility, proof, source, verified date
 
-## Data strategy
-
-There is no reliable public API for foster-specific discounts. This app is **manual-first**:
-
-1. Enter offers you have verified with the business
-2. Optionally geocode addresses automatically
-3. Do **not** scrape the Foster Friendly App or other proprietary directories
-
 ## Scripts
 
 ```bash
