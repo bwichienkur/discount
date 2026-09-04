@@ -1,16 +1,20 @@
 import { NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import {
+  deleteBusiness,
+  getBusinessById,
+  updateBusiness,
+} from "@/lib/db";
 import { businessSchema, emptyToNull } from "@/lib/validators";
 import { geocodeGeorgiaAddress } from "@/lib/geocode";
-import type { Business } from "@/lib/types";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function GET(_request: Request, { params }: Params) {
   const { id } = await params;
-  const business = getDb()
-    .prepare("SELECT * FROM businesses WHERE id = ?")
-    .get(Number(id)) as Business | undefined;
+  const business = getBusinessById(Number(id));
   if (!business) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
@@ -19,9 +23,7 @@ export async function GET(_request: Request, { params }: Params) {
 
 export async function PUT(request: Request, { params }: Params) {
   const { id } = await params;
-  const existing = getDb()
-    .prepare("SELECT * FROM businesses WHERE id = ?")
-    .get(Number(id)) as Business | undefined;
+  const existing = getBusinessById(Number(id));
   if (!existing) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
@@ -58,53 +60,27 @@ export async function PUT(request: Request, { params }: Params) {
     }
   }
 
-  getDb()
-    .prepare(
-      `
-      UPDATE businesses SET
-        name = @name,
-        category = @category,
-        region_id = @region_id,
-        address_line1 = @address_line1,
-        address_line2 = @address_line2,
-        city = @city,
-        state = @state,
-        zip = @zip,
-        lat = @lat,
-        lng = @lng,
-        phone = @phone,
-        website = @website,
-        active = @active,
-        updated_at = datetime('now')
-      WHERE id = @id
-    `,
-    )
-    .run({
-      id: Number(id),
-      name: data.name,
-      category: data.category,
-      region_id: data.region_id,
-      address_line1: data.address_line1,
-      address_line2: emptyToNull(data.address_line2 ?? null),
-      city: data.city,
-      state: data.state || "GA",
-      zip: data.zip,
-      lat: lat ?? existing.lat,
-      lng: lng ?? existing.lng,
-      phone: emptyToNull(data.phone ?? null),
-      website: emptyToNull(data.website ?? null),
-      active: data.active ? 1 : 0,
-    });
-
-  const business = getDb()
-    .prepare("SELECT * FROM businesses WHERE id = ?")
-    .get(Number(id)) as Business;
+  const business = updateBusiness(Number(id), {
+    name: data.name,
+    category: data.category,
+    region_id: data.region_id,
+    address_line1: data.address_line1,
+    address_line2: emptyToNull(data.address_line2 ?? null),
+    city: data.city,
+    state: data.state || "GA",
+    zip: data.zip,
+    lat: lat ?? existing.lat,
+    lng: lng ?? existing.lng,
+    phone: emptyToNull(data.phone ?? null),
+    website: emptyToNull(data.website ?? null),
+    active: data.active ? 1 : 0,
+  });
 
   return NextResponse.json({ business });
 }
 
 export async function DELETE(_request: Request, { params }: Params) {
   const { id } = await params;
-  getDb().prepare("DELETE FROM businesses WHERE id = ?").run(Number(id));
+  deleteBusiness(Number(id));
   return NextResponse.json({ ok: true });
 }

@@ -1,260 +1,78 @@
-import Database from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
-import type { OfferWithBusiness } from "./types";
+import type { Business, Offer, OfferWithBusiness } from "./types";
+import {
+  createSeedStore,
+  isOfferCurrent,
+  joinOffer,
+  type Region,
+  type StoreData,
+} from "./seed";
 
-const dataDir = path.join(process.cwd(), "data");
-const dbPath = process.env.DATABASE_PATH
-  ? path.join(/* turbopackIgnore: true */ process.cwd(), process.env.DATABASE_PATH)
-  : path.join(dataDir, "opendoor.db");
-
-let dbInstance: Database.Database | null = null;
-
-function ensureSchema(db: Database.Database) {
-  db.exec(`
-    PRAGMA foreign_keys = ON;
-
-    CREATE TABLE IF NOT EXISTS regions (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      slug TEXT NOT NULL UNIQUE
-    );
-
-    CREATE TABLE IF NOT EXISTS businesses (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      category TEXT NOT NULL,
-      region_id INTEGER NOT NULL REFERENCES regions(id),
-      address_line1 TEXT NOT NULL,
-      address_line2 TEXT,
-      city TEXT NOT NULL,
-      state TEXT NOT NULL DEFAULT 'GA',
-      zip TEXT NOT NULL,
-      lat REAL,
-      lng REAL,
-      phone TEXT,
-      website TEXT,
-      active INTEGER NOT NULL DEFAULT 1,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS offers (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
-      title TEXT NOT NULL,
-      description TEXT NOT NULL,
-      is_free INTEGER NOT NULL DEFAULT 0,
-      discount_percent REAL,
-      discount_details TEXT,
-      starts_at TEXT,
-      ends_at TEXT,
-      eligibility_notes TEXT,
-      proof_required TEXT,
-      source_url TEXT,
-      verified_at TEXT,
-      active INTEGER NOT NULL DEFAULT 1,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-  `);
+declare global {
+  // eslint-disable-next-line no-var
+  var __opendoorStore: StoreData | undefined;
 }
 
-function seedIfEmpty(db: Database.Database) {
-  const count = db.prepare("SELECT COUNT(*) AS c FROM regions").get() as {
-    c: number;
-  };
-  if (count.c > 0) return;
+function storePath() {
+  if (process.env.DATABASE_PATH) {
+    return path.isAbsolute(process.env.DATABASE_PATH)
+      ? process.env.DATABASE_PATH
+      : path.join(process.cwd(), process.env.DATABASE_PATH);
+  }
+  // Vercel serverless FS is read-only except /tmp
+  if (process.env.VERCEL) {
+    return path.join("/tmp", "opendoor-store.json");
+  }
+  return path.join(process.cwd(), "data", "opendoor-store.json");
+}
 
-  const insertRegion = db.prepare(
-    "INSERT INTO regions (name, slug) VALUES (?, ?)",
-  );
-  const regions = [
-    ["Metro Atlanta", "metro-atlanta"],
-    ["North Georgia", "north-georgia"],
-    ["Middle Georgia", "middle-georgia"],
-    ["Coastal / Southeast", "coastal"],
-    ["Southwest Georgia", "southwest"],
-    ["Statewide", "statewide"],
-  ] as const;
+function readStoreFromDisk(): StoreData | null {
+  const file = storePath();
+  try {
+    if (!fs.existsSync(file)) return null;
+    const raw = fs.readFileSync(file, "utf8");
+    return JSON.parse(raw) as StoreData;
+  } catch {
+    return null;
+  }
+}
 
-  const regionIds: Record<string, number> = {};
-  for (const [name, slug] of regions) {
-    const info = insertRegion.run(name, slug);
-    regionIds[slug] = Number(info.lastInsertRowid);
+function writeStoreToDisk(store: StoreData) {
+  const file = storePath();
+  try {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, JSON.stringify(store, null, 2), "utf8");
+  } catch (error) {
+    // On read-only filesystems, keep in-memory store for this instance
+    console.warn("Unable to persist store to disk:", error);
+  }
+}
+
+export function getStore(): StoreData {
+  if (globalThis.__opendoorStore) {
+    return globalThis.__opendoorStore;
   }
 
-  const insertBusiness = db.prepare(`
-    INSERT INTO businesses (
-      name, category, region_id, address_line1, city, state, zip,
-      lat, lng, phone, website, active
-    ) VALUES (
-      @name, @category, @region_id, @address_line1, @city, @state, @zip,
-      @lat, @lng, @phone, @website, 1
-    )
-  `);
-
-  const insertOffer = db.prepare(`
-    INSERT INTO offers (
-      business_id, title, description, is_free, discount_percent,
-      discount_details, starts_at, ends_at, eligibility_notes,
-      proof_required, source_url, verified_at, active
-    ) VALUES (
-      @business_id, @title, @description, @is_free, @discount_percent,
-      @discount_details, @starts_at, @ends_at, @eligibility_notes,
-      @proof_required, @source_url, @verified_at, 1
-    )
-  `);
-
-  const seed = [
-    {
-      business: {
-        name: "Savannah Children's Museum",
-        category: "museum",
-        region_id: regionIds.coastal,
-        address_line1: "655 W. Boundary St",
-        city: "Savannah",
-        state: "GA",
-        zip: "31401",
-        lat: 32.0817,
-        lng: -81.0998,
-        phone: null,
-        website: "https://www.chsgeorgia.org/scm",
-      },
-      offer: {
-        title: "50% off admission for foster families",
-        description:
-          "Foster and kinship families receive half-price admission when visiting Savannah Children's Museum as part of Georgia Kids Belong Foster Friendly support.",
-        is_free: 0,
-        discount_percent: 50,
-        discount_details: "50% off general admission",
-        starts_at: null,
-        ends_at: null,
-        eligibility_notes:
-          "Licensed foster or kinship families in Georgia. Confirm current offer details with the venue.",
-        proof_required: "Foster parent ID or Foster Friendly card",
-        source_url:
-          "http://www.southernmamas.com/2023/50-discount-for-foster-families-savannah-childrens-museum/",
-        verified_at: "2026-01-15",
-      },
-    },
-    {
-      business: {
-        name: "Demo Metro Grill",
-        category: "restaurant",
-        region_id: regionIds["metro-atlanta"],
-        address_line1: "100 Peachtree St NE",
-        city: "Atlanta",
-        state: "GA",
-        zip: "30303",
-        lat: 33.7557,
-        lng: -84.3884,
-        phone: "(404) 555-0100",
-        website: null,
-      },
-      offer: {
-        title: "Free kids meal with foster ID",
-        description:
-          "DEMO OFFER for development: one free kids meal per foster child with a qualifying foster parent ID. Replace with verified local partners.",
-        is_free: 1,
-        discount_percent: null,
-        discount_details: "Free kids meal",
-        starts_at: null,
-        ends_at: null,
-        eligibility_notes: "Demo listing — verify before publishing publicly.",
-        proof_required: "Foster parent ID",
-        source_url: null,
-        verified_at: "2026-03-01",
-      },
-    },
-    {
-      business: {
-        name: "North Georgia Family Y",
-        category: "gym",
-        region_id: regionIds["north-georgia"],
-        address_line1: "200 Main St",
-        city: "Gainesville",
-        state: "GA",
-        zip: "30501",
-        lat: 34.2979,
-        lng: -83.8241,
-        phone: "(770) 555-0142",
-        website: null,
-      },
-      offer: {
-        title: "25% off family membership",
-        description:
-          "DEMO OFFER: discounted family membership for licensed foster households. Confirm rates and eligibility with the branch.",
-        is_free: 0,
-        discount_percent: 25,
-        discount_details: "25% off standard family membership",
-        starts_at: null,
-        ends_at: null,
-        eligibility_notes: "Demo listing — replace with a verified YMCA partner.",
-        proof_required: "Foster license",
-        source_url: null,
-        verified_at: "2026-02-20",
-      },
-    },
-    {
-      business: {
-        name: "Coastal Splash Adventure Park",
-        category: "attraction",
-        region_id: regionIds.coastal,
-        address_line1: "450 Ocean Hwy",
-        city: "Brunswick",
-        state: "GA",
-        zip: "31520",
-        lat: 31.1499,
-        lng: -81.4915,
-        phone: null,
-        website: null,
-      },
-      offer: {
-        title: "Free admission Saturdays in April",
-        description:
-          "DEMO OFFER: free general admission for foster kids on Saturdays during April. Caregivers pay standard rates.",
-        is_free: 1,
-        discount_percent: null,
-        discount_details: "Free child admission on promo Saturdays",
-        starts_at: "2026-04-01",
-        ends_at: "2026-04-30",
-        eligibility_notes: "Demo timed promo — date-bound offer for UI testing.",
-        proof_required: "Foster parent ID",
-        source_url: null,
-        verified_at: "2026-03-10",
-      },
-    },
-  ] as const;
-
-  const tx = db.transaction(() => {
-    for (const item of seed) {
-      const biz = insertBusiness.run(item.business);
-      insertOffer.run({
-        ...item.offer,
-        business_id: Number(biz.lastInsertRowid),
-      });
-    }
-  });
-  tx();
-}
-
-export function getDb() {
-  if (dbInstance) return dbInstance;
-  if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
+  const fromDisk = readStoreFromDisk();
+  const store = fromDisk ?? createSeedStore();
+  if (!fromDisk) {
+    writeStoreToDisk(store);
   }
-  dbInstance = new Database(dbPath);
-  dbInstance.pragma("journal_mode = WAL");
-  ensureSchema(dbInstance);
-  seedIfEmpty(dbInstance);
-  return dbInstance;
+  globalThis.__opendoorStore = store;
+  return store;
 }
 
-export function listRegions() {
-  return getDb()
-    .prepare("SELECT id, name, slug FROM regions ORDER BY name ASC")
-    .all() as { id: number; name: string; slug: string }[];
+export function saveStore(mutator: (store: StoreData) => void) {
+  const store = getStore();
+  mutator(store);
+  writeStoreToDisk(store);
+  globalThis.__opendoorStore = store;
+  return store;
+}
+
+export function listRegions(): Region[] {
+  return [...getStore().regions].sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export function listActiveOffers(filters?: {
@@ -262,86 +80,184 @@ export function listActiveOffers(filters?: {
   category?: string;
   q?: string;
   freeOnly?: boolean;
-}) {
-  const clauses: string[] = [
-    "o.active = 1",
-    "b.active = 1",
-    "(o.ends_at IS NULL OR date(o.ends_at) >= date('now'))",
-  ];
-  const params: Record<string, string | number> = {};
+}): OfferWithBusiness[] {
+  const store = getStore();
+  const regionById = new Map(store.regions.map((r) => [r.id, r]));
+  const businessById = new Map(store.businesses.map((b) => [b.id, b]));
+
+  let rows = store.offers
+    .filter((o) => o.active === 1 && isOfferCurrent(o))
+    .map((o) => {
+      const business = businessById.get(o.business_id);
+      if (!business || business.active !== 1) return null;
+      const region = regionById.get(business.region_id);
+      if (!region) return null;
+      return joinOffer(o, business, region);
+    })
+    .filter((row): row is OfferWithBusiness => row != null);
 
   if (filters?.region) {
-    clauses.push("r.slug = @region");
-    params.region = filters.region;
+    rows = rows.filter((r) => r.region_slug === filters.region);
   }
   if (filters?.category) {
-    clauses.push("b.category = @category");
-    params.category = filters.category;
+    rows = rows.filter((r) => r.category === filters.category);
   }
   if (filters?.freeOnly) {
-    clauses.push("o.is_free = 1");
+    rows = rows.filter((r) => r.is_free === 1);
   }
   if (filters?.q) {
-    clauses.push(
-      "(b.name LIKE @q OR o.title LIKE @q OR o.description LIKE @q OR b.city LIKE @q)",
+    const q = filters.q.toLowerCase();
+    rows = rows.filter(
+      (r) =>
+        r.business_name.toLowerCase().includes(q) ||
+        r.title.toLowerCase().includes(q) ||
+        r.description.toLowerCase().includes(q) ||
+        r.city.toLowerCase().includes(q),
     );
-    params.q = `%${filters.q}%`;
   }
 
-  const sql = `
-    SELECT
-      o.*,
-      b.name AS business_name,
-      b.category,
-      b.region_id,
-      r.name AS region_name,
-      r.slug AS region_slug,
-      b.address_line1,
-      b.address_line2,
-      b.city,
-      b.state,
-      b.zip,
-      b.lat,
-      b.lng,
-      b.phone,
-      b.website,
-      b.active AS business_active
-    FROM offers o
-    JOIN businesses b ON b.id = o.business_id
-    JOIN regions r ON r.id = b.region_id
-    WHERE ${clauses.join(" AND ")}
-    ORDER BY o.is_free DESC, o.verified_at DESC, b.name ASC
-  `;
-
-  return getDb().prepare(sql).all(params) as OfferWithBusiness[];
+  return rows.sort((a, b) => {
+    if (a.is_free !== b.is_free) return b.is_free - a.is_free;
+    const av = a.verified_at ?? "";
+    const bv = b.verified_at ?? "";
+    if (av !== bv) return bv.localeCompare(av);
+    return a.business_name.localeCompare(b.business_name);
+  });
 }
 
-export function getOfferById(id: number) {
-  return getDb()
-    .prepare(
-      `
-      SELECT
-        o.*,
-        b.name AS business_name,
-        b.category,
-        b.region_id,
-        r.name AS region_name,
-        r.slug AS region_slug,
-        b.address_line1,
-        b.address_line2,
-        b.city,
-        b.state,
-        b.zip,
-        b.lat,
-        b.lng,
-        b.phone,
-        b.website,
-        b.active AS business_active
-      FROM offers o
-      JOIN businesses b ON b.id = o.business_id
-      JOIN regions r ON r.id = b.region_id
-      WHERE o.id = ?
-    `,
-    )
-    .get(id) as OfferWithBusiness | undefined;
+export function getOfferById(id: number): OfferWithBusiness | undefined {
+  const store = getStore();
+  const offer = store.offers.find((o) => o.id === id);
+  if (!offer) return undefined;
+  const business = store.businesses.find((b) => b.id === offer.business_id);
+  if (!business) return undefined;
+  const region = store.regions.find((r) => r.id === business.region_id);
+  if (!region) return undefined;
+  return joinOffer(offer, business, region);
+}
+
+export function listBusinesses() {
+  const store = getStore();
+  const regionById = new Map(store.regions.map((r) => [r.id, r]));
+  return [...store.businesses]
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((b) => ({
+      ...b,
+      region_name: regionById.get(b.region_id)?.name ?? "",
+      region_slug: regionById.get(b.region_id)?.slug ?? "",
+    }));
+}
+
+export function getBusinessById(id: number): Business | undefined {
+  return getStore().businesses.find((b) => b.id === id);
+}
+
+export function createBusiness(
+  input: Omit<Business, "id" | "created_at" | "updated_at">,
+): Business {
+  const now = new Date().toISOString();
+  let created!: Business;
+  saveStore((store) => {
+    created = {
+      ...input,
+      id: store.nextBusinessId++,
+      created_at: now,
+      updated_at: now,
+    };
+    store.businesses.push(created);
+  });
+  return created;
+}
+
+export function updateBusiness(
+  id: number,
+  input: Omit<Business, "id" | "created_at" | "updated_at">,
+): Business | undefined {
+  let updated: Business | undefined;
+  saveStore((store) => {
+    const idx = store.businesses.findIndex((b) => b.id === id);
+    if (idx < 0) return;
+    updated = {
+      ...store.businesses[idx],
+      ...input,
+      id,
+      updated_at: new Date().toISOString(),
+    };
+    store.businesses[idx] = updated;
+  });
+  return updated;
+}
+
+export function deleteBusiness(id: number) {
+  saveStore((store) => {
+    store.businesses = store.businesses.filter((b) => b.id !== id);
+    store.offers = store.offers.filter((o) => o.business_id !== id);
+  });
+}
+
+export function listAllOffersAdmin() {
+  const store = getStore();
+  const businessById = new Map(store.businesses.map((b) => [b.id, b]));
+  const regionById = new Map(store.regions.map((r) => [r.id, r]));
+  return [...store.offers]
+    .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+    .map((o) => {
+      const business = businessById.get(o.business_id);
+      const region = business
+        ? regionById.get(business.region_id)
+        : undefined;
+      return {
+        ...o,
+        business_name: business?.name ?? "Unknown",
+        category: business?.category,
+        region_name: region?.name,
+        region_slug: region?.slug,
+      };
+    });
+}
+
+export function getOfferRecord(id: number): Offer | undefined {
+  return getStore().offers.find((o) => o.id === id);
+}
+
+export function createOffer(
+  input: Omit<Offer, "id" | "created_at" | "updated_at">,
+): Offer {
+  const now = new Date().toISOString();
+  let created!: Offer;
+  saveStore((store) => {
+    created = {
+      ...input,
+      id: store.nextOfferId++,
+      created_at: now,
+      updated_at: now,
+    };
+    store.offers.push(created);
+  });
+  return created;
+}
+
+export function updateOffer(
+  id: number,
+  input: Omit<Offer, "id" | "created_at" | "updated_at">,
+): Offer | undefined {
+  let updated: Offer | undefined;
+  saveStore((store) => {
+    const idx = store.offers.findIndex((o) => o.id === id);
+    if (idx < 0) return;
+    updated = {
+      ...store.offers[idx],
+      ...input,
+      id,
+      updated_at: new Date().toISOString(),
+    };
+    store.offers[idx] = updated;
+  });
+  return updated;
+}
+
+export function deleteOffer(id: number) {
+  saveStore((store) => {
+    store.offers = store.offers.filter((o) => o.id !== id);
+  });
 }

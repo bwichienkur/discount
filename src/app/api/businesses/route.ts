@@ -1,21 +1,20 @@
 import { NextResponse } from "next/server";
-import { getDb, listRegions } from "@/lib/db";
+import {
+  createBusiness,
+  listBusinesses,
+  listRegions,
+} from "@/lib/db";
 import { businessSchema, emptyToNull } from "@/lib/validators";
 import { geocodeGeorgiaAddress } from "@/lib/geocode";
-import type { Business } from "@/lib/types";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const businesses = getDb()
-    .prepare(
-      `
-      SELECT b.*, r.name AS region_name, r.slug AS region_slug
-      FROM businesses b
-      JOIN regions r ON r.id = b.region_id
-      ORDER BY b.name ASC
-    `,
-    )
-    .all();
-  return NextResponse.json({ businesses, regions: listRegions() });
+  return NextResponse.json({
+    businesses: listBusinesses(),
+    regions: listRegions(),
+  });
 }
 
 export async function POST(request: Request) {
@@ -45,37 +44,21 @@ export async function POST(request: Request) {
     }
   }
 
-  const info = getDb()
-    .prepare(
-      `
-      INSERT INTO businesses (
-        name, category, region_id, address_line1, address_line2,
-        city, state, zip, lat, lng, phone, website, active
-      ) VALUES (
-        @name, @category, @region_id, @address_line1, @address_line2,
-        @city, @state, @zip, @lat, @lng, @phone, @website, @active
-      )
-    `,
-    )
-    .run({
-      name: data.name,
-      category: data.category,
-      region_id: data.region_id,
-      address_line1: data.address_line1,
-      address_line2: emptyToNull(data.address_line2 ?? null),
-      city: data.city,
-      state: data.state || "GA",
-      zip: data.zip,
-      lat,
-      lng,
-      phone: emptyToNull(data.phone ?? null),
-      website: emptyToNull(data.website ?? null),
-      active: data.active ? 1 : 0,
-    });
-
-  const business = getDb()
-    .prepare("SELECT * FROM businesses WHERE id = ?")
-    .get(info.lastInsertRowid) as Business;
+  const business = createBusiness({
+    name: data.name,
+    category: data.category,
+    region_id: data.region_id,
+    address_line1: data.address_line1,
+    address_line2: emptyToNull(data.address_line2 ?? null),
+    city: data.city,
+    state: data.state || "GA",
+    zip: data.zip,
+    lat,
+    lng,
+    phone: emptyToNull(data.phone ?? null),
+    website: emptyToNull(data.website ?? null),
+    active: data.active ? 1 : 0,
+  });
 
   return NextResponse.json({ business }, { status: 201 });
 }

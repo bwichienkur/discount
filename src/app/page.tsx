@@ -2,6 +2,8 @@ import Link from "next/link";
 import { SiteFooter, SiteHeader } from "@/components/SiteChrome";
 import { listActiveOffers } from "@/lib/db";
 
+export const dynamic = "force-dynamic";
+
 export default function HomePage() {
   const offerCount = listActiveOffers().length;
 

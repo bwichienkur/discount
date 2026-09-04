@@ -1,9 +1,15 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { isAdminAuthenticated } from "@/lib/auth";
-import { getDb, listRegions } from "@/lib/db";
+import {
+  listAllOffersAdmin,
+  listBusinesses,
+  listRegions,
+} from "@/lib/db";
 import { LogoutButton } from "@/components/LogoutButton";
 import { CATEGORY_LABELS, type Category } from "@/lib/types";
+
+export const dynamic = "force-dynamic";
 
 export default async function AdminDashboardPage() {
   if (!(await isAdminAuthenticated())) {
@@ -11,43 +17,8 @@ export default async function AdminDashboardPage() {
   }
 
   const regions = listRegions();
-  const businesses = getDb()
-    .prepare(
-      `
-      SELECT b.*, r.name AS region_name
-      FROM businesses b
-      JOIN regions r ON r.id = b.region_id
-      ORDER BY b.name ASC
-    `,
-    )
-    .all() as Array<{
-    id: number;
-    name: string;
-    category: Category;
-    city: string;
-    region_name: string;
-    active: number;
-  }>;
-
-  const offers = getDb()
-    .prepare(
-      `
-      SELECT o.id, o.title, o.is_free, o.discount_percent, o.active, o.ends_at,
-             b.name AS business_name
-      FROM offers o
-      JOIN businesses b ON b.id = o.business_id
-      ORDER BY o.updated_at DESC
-    `,
-    )
-    .all() as Array<{
-    id: number;
-    title: string;
-    is_free: number;
-    discount_percent: number | null;
-    active: number;
-    ends_at: string | null;
-    business_name: string;
-  }>;
+  const businesses = listBusinesses();
+  const offers = listAllOffersAdmin();
 
   return (
     <main className="site-shell py-10">
@@ -98,7 +69,9 @@ export default async function AdminDashboardPage() {
               {businesses.map((b) => (
                 <tr key={b.id} className="border-b border-[var(--line)]">
                   <td className="px-4 py-3 font-semibold">{b.name}</td>
-                  <td className="px-4 py-3">{CATEGORY_LABELS[b.category]}</td>
+                  <td className="px-4 py-3">
+                    {CATEGORY_LABELS[b.category as Category]}
+                  </td>
                   <td className="px-4 py-3">{b.region_name}</td>
                   <td className="px-4 py-3">{b.city}</td>
                   <td className="px-4 py-3">{b.active ? "Active" : "Hidden"}</td>
@@ -166,6 +139,8 @@ export default async function AdminDashboardPage() {
         <h2 className="font-display text-2xl text-pine">Regions</h2>
         <p className="mt-2 text-sm text-muted">
           Built-in Georgia regions for filtering (public filters already wired).
+          On Vercel, admin writes persist in ephemeral storage for the running
+          instance — for durable production data, connect Postgres/Turso later.
         </p>
         <ul className="mt-4 flex flex-wrap gap-2">
           {regions.map((r) => (

@@ -1,14 +1,14 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { isAdminAuthenticated } from "@/lib/auth";
-import { getDb } from "@/lib/db";
+import { listBusinesses } from "@/lib/db";
 import { OfferForm } from "@/components/OfferForm";
+
+export const dynamic = "force-dynamic";
 
 export default async function NewOfferPage() {
   if (!(await isAdminAuthenticated())) redirect("/admin/login");
-  const businesses = getDb()
-    .prepare("SELECT id, name FROM businesses ORDER BY name ASC")
-    .all() as { id: number; name: string }[];
+  const businesses = listBusinesses().map((b) => ({ id: b.id, name: b.name }));
 
   return (
     <main className="site-shell py-10">

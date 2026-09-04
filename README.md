@@ -14,7 +14,7 @@ Georgia directory of free and discounted experiences for foster and kinship fami
 ## Stack
 
 - Next.js (App Router) + TypeScript + Tailwind CSS
-- SQLite (`better-sqlite3`) for local persistence
+- JSON file store (Vercel-compatible; no native SQLite module)
 - Leaflet / OpenStreetMap for the map
 - Cookie session auth for admin (`jose` JWT)
 
@@ -31,13 +31,25 @@ Open [http://localhost:3000](http://localhost:3000).
 Admin: [http://localhost:3000/admin](http://localhost:3000/admin)  
 Default password from `.env.example`: `opendoor-admin`
 
+## Vercel deploy
+
+This app is configured to deploy on Vercel without a database service:
+
+1. Connect the GitHub repo to Vercel
+2. Set environment variables (recommended):
+   - `AUTH_SECRET` — long random string
+   - `ADMIN_PASSWORD` — admin login password
+3. Deploy from `main`
+
+On Vercel, data is seeded automatically. Admin writes use `/tmp` (ephemeral across cold starts). For durable production storage later, swap the JSON store for Postgres (Neon) or Turso.
+
 ## Environment
 
 | Variable | Purpose |
 |----------|---------|
 | `AUTH_SECRET` | Signs admin session cookies |
 | `ADMIN_PASSWORD` | Password for `/admin` |
-| `DATABASE_PATH` | Optional SQLite path (default `data/opendoor.db`) |
+| `DATABASE_PATH` | Optional JSON store path (default `data/opendoor-store.json`, or `/tmp/...` on Vercel) |
 
 ## Data model
 
@@ -52,7 +64,6 @@ There is no reliable public API for foster-specific discounts. This app is **man
 1. Enter offers you have verified with the business
 2. Optionally geocode addresses automatically
 3. Do **not** scrape the Foster Friendly App or other proprietary directories
-4. Later you can seed adjacent public programs (e.g. Museums for All SNAP access) as a clearly labeled separate offer type
 
 ## Scripts
 

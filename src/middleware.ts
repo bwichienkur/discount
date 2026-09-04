@@ -21,7 +21,9 @@ export async function middleware(request: NextRequest) {
   }
 
   const token = request.cookies.get(COOKIE_NAME)?.value;
-  const secret = process.env.AUTH_SECRET;
+  const secret =
+    process.env.AUTH_SECRET ||
+    (process.env.VERCEL ? "opendoor-ga-vercel-demo-secret" : null);
   if (!token || !secret) {
     if (isAdminPage) {
       return NextResponse.redirect(new URL("/admin/login", request.url));

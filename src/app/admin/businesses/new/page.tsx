@@ -4,6 +4,8 @@ import { isAdminAuthenticated } from "@/lib/auth";
 import { listRegions } from "@/lib/db";
 import { BusinessForm } from "@/components/BusinessForm";
 
+export const dynamic = "force-dynamic";
+
 export default async function NewBusinessPage() {
   if (!(await isAdminAuthenticated())) redirect("/admin/login");
   const regions = listRegions();

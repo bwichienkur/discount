@@ -34,9 +34,10 @@ yarn-error.log*
 .env*
 !.env.example
 
-# local sqlite database
+# local sqlite / json database files
 /data/*.db
 /data/*.db-*
+/data/opendoor-store.json
 
 # vercel
 .vercel
