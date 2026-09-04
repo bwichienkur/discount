@@ -41,6 +41,14 @@ This app is configured to deploy on Vercel without a database service:
    - `ADMIN_PASSWORD` — admin login password
 3. Deploy from `main`
 
+### If you don’t see the site after deploy
+
+1. Open the Vercel project → **Deployments** and confirm the latest **Production** deploy is green (not an older failed one).
+2. Click **Visit** on that Production deployment (do not use `discount.vercel.app` — that is a different site).
+3. If the URL asks you to log in to Vercel, turn off **Deployment Protection** for Production:  
+   Project Settings → Deployment Protection → disable protection / SSO for Production (or add a public custom domain).
+4. Optionally set `AUTH_SECRET` and `ADMIN_PASSWORD` in Project Settings → Environment Variables, then Redeploy.
+
 On Vercel, data is seeded automatically. Admin writes use `/tmp` (ephemeral across cold starts). For durable production storage later, swap the JSON store for Postgres (Neon) or Turso.
 
 ## Environment
