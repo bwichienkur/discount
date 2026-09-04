@@ -13,7 +13,7 @@ export default function HomePage() {
           className="absolute inset-0 bg-cover bg-center"
           style={{
             backgroundImage:
-              "linear-gradient(105deg, rgba(15,47,38,0.88) 0%, rgba(15,47,38,0.55) 42%, rgba(15,47,38,0.25) 100%), url('https://images.unsplash.com/photo-1501594907352-04cda38ebc29?auto=format&fit=crop&w=2000&q=80')",
+              "linear-gradient(105deg, rgba(15,47,38,0.88) 0%, rgba(15,47,38,0.55) 42%, rgba(15,47,38,0.28) 100%), url('https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=2000&q=80')",
           }}
         />
         <div
