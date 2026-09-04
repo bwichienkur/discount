@@ -1,0 +1,197 @@
+@import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
+
+:root {
+  --pine: #1a4a3a;
+  --pine-deep: #0f2f26;
+  --moss: #2f6b55;
+  --leaf: #5c9a7d;
+  --mist: #e4efe9;
+  --sky: #c8dde8;
+  --sand: #f3efe6;
+  --honey: #c9852c;
+  --ink: #14231e;
+  --muted: #4d635a;
+  --paper: #f7faf8;
+  --line: rgba(26, 74, 58, 0.12);
+  --background: var(--paper);
+  --foreground: var(--ink);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-pine: var(--pine);
+  --color-pine-deep: var(--pine-deep);
+  --color-moss: var(--moss);
+  --color-leaf: var(--leaf);
+  --color-mist: var(--mist);
+  --color-sky: var(--sky);
+  --color-sand: var(--sand);
+  --color-honey: var(--honey);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-paper: var(--paper);
+  --font-display: var(--font-fraunces);
+  --font-sans: var(--font-manrope);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--ink);
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgba(200, 221, 232, 0.7), transparent 60%),
+    radial-gradient(900px 500px at 90% 0%, rgba(92, 154, 125, 0.25), transparent 55%),
+    linear-gradient(180deg, #eef5f1 0%, var(--paper) 40%, #eef2ef 100%);
+  font-family: var(--font-manrope), system-ui, sans-serif;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.font-display {
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-optical-sizing: auto;
+}
+
+.site-shell {
+  width: min(1120px, calc(100% - 2rem));
+  margin-inline: auto;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 999px;
+  padding: 0.85rem 1.35rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  transition: transform 180ms ease, background 180ms ease, box-shadow 180ms ease;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+}
+
+.btn-primary {
+  background: var(--pine);
+  color: white;
+  box-shadow: 0 12px 30px rgba(15, 47, 38, 0.22);
+}
+
+.btn-primary:hover {
+  background: var(--pine-deep);
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--pine-deep);
+  border: 1px solid rgba(26, 74, 58, 0.18);
+  backdrop-filter: blur(8px);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--pine);
+  border: 1px solid rgba(26, 74, 58, 0.2);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.field label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.field input,
+.field select,
+.field textarea {
+  border: 1px solid var(--line);
+  background: white;
+  border-radius: 0.85rem;
+  padding: 0.75rem 0.9rem;
+  font: inherit;
+  color: var(--ink);
+}
+
+.field textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.fade-up {
+  animation: fadeUp 700ms ease both;
+}
+
+.fade-up-delay {
+  animation: fadeUp 900ms ease 120ms both;
+}
+
+.fade-up-delay-2 {
+  animation: fadeUp 1000ms ease 240ms both;
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes drift {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.drift {
+  animation: drift 8s ease-in-out infinite;
+}
+
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  font: inherit;
+  border-radius: 1.25rem;
+  z-index: 0;
+}
+
+.offer-pin {
+  background: var(--pine);
+  color: white;
+  border: 2px solid white;
+  border-radius: 999px;
+  width: 1.75rem;
+  height: 1.75rem;
+  display: grid;
+  place-items: center;
+  font-size: 0.7rem;
+  font-weight: 800;
+  box-shadow: 0 8px 18px rgba(15, 47, 38, 0.35);
+}
