@@ -4,6 +4,7 @@ import {
   getBusinessById,
   updateBusiness,
 } from "@/lib/db";
+import { requireAdminApi } from "@/lib/auth";
 import { businessSchema, emptyToNull } from "@/lib/validators";
 import { geocodeGeorgiaAddress } from "@/lib/geocode";
 
@@ -22,6 +23,9 @@ export async function GET(_request: Request, { params }: Params) {
 }
 
 export async function PUT(request: Request, { params }: Params) {
+  const denied = await requireAdminApi();
+  if (denied) return denied;
+
   const { id } = await params;
   const existing = getBusinessById(Number(id));
   if (!existing) {
@@ -80,6 +84,9 @@ export async function PUT(request: Request, { params }: Params) {
 }
 
 export async function DELETE(_request: Request, { params }: Params) {
+  const denied = await requireAdminApi();
+  if (denied) return denied;
+
   const { id } = await params;
   deleteBusiness(Number(id));
   return NextResponse.json({ ok: true });

@@ -5,6 +5,7 @@ import {
   listActiveOffers,
   listAllOffersAdmin,
 } from "@/lib/db";
+import { requireAdminApi } from "@/lib/auth";
 import { offerSchema, emptyToNull } from "@/lib/validators";
 
 export const runtime = "nodejs";
@@ -19,6 +20,8 @@ export async function GET(request: Request) {
   const all = searchParams.get("all") === "1";
 
   if (all) {
+    const denied = await requireAdminApi();
+    if (denied) return denied;
     return NextResponse.json({ offers: listAllOffersAdmin() });
   }
 
@@ -27,6 +30,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const denied = await requireAdminApi();
+  if (denied) return denied;
+
   const json = await request.json();
   const parsed = offerSchema.safeParse(json);
   if (!parsed.success) {

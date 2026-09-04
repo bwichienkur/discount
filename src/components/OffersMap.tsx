@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import L from "leaflet";
 import Link from "next/link";
+import "leaflet/dist/leaflet.css";
 import type { OfferWithBusiness } from "@/lib/types";
 import { formatOfferBadge } from "@/lib/format";
 

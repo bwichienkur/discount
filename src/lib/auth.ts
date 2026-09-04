@@ -1,4 +1,4 @@
-import { SignJWT, jwtVerify } from "jose";
+import { jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
@@ -15,6 +15,7 @@ function getSecret() {
 }
 
 export async function createAdminToken() {
+  const { SignJWT } = await import("jose");
   return new SignJWT({ role: "admin" })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
@@ -46,11 +47,6 @@ export async function clearAdminSessionResponse(response: NextResponse) {
   return response;
 }
 
-export async function clearAdminSession() {
-  const jar = await cookies();
-  jar.delete(COOKIE_NAME);
-}
-
 export async function isAdminAuthenticated() {
   const jar = await cookies();
   const token = jar.get(COOKIE_NAME)?.value;
@@ -61,6 +57,13 @@ export async function isAdminAuthenticated() {
   } catch {
     return false;
   }
+}
+
+export async function requireAdminApi() {
+  if (!(await isAdminAuthenticated())) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  return null;
 }
 
 export function checkAdminPassword(password: string) {

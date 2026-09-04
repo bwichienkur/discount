@@ -4,6 +4,7 @@ import {
   listBusinesses,
   listRegions,
 } from "@/lib/db";
+import { requireAdminApi } from "@/lib/auth";
 import { businessSchema, emptyToNull } from "@/lib/validators";
 import { geocodeGeorgiaAddress } from "@/lib/geocode";
 
@@ -18,6 +19,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const denied = await requireAdminApi();
+  if (denied) return denied;
+
   const json = await request.json();
   const parsed = businessSchema.safeParse(json);
   if (!parsed.success) {

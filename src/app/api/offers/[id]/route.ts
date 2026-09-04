@@ -5,6 +5,7 @@ import {
   getOfferRecord,
   updateOffer,
 } from "@/lib/db";
+import { requireAdminApi } from "@/lib/auth";
 import { offerSchema, emptyToNull } from "@/lib/validators";
 
 export const runtime = "nodejs";
@@ -22,6 +23,9 @@ export async function GET(_request: Request, { params }: Params) {
 }
 
 export async function PUT(request: Request, { params }: Params) {
+  const denied = await requireAdminApi();
+  if (denied) return denied;
+
   const { id } = await params;
   if (!getOfferRecord(Number(id))) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -58,6 +62,9 @@ export async function PUT(request: Request, { params }: Params) {
 }
 
 export async function DELETE(_request: Request, { params }: Params) {
+  const denied = await requireAdminApi();
+  if (denied) return denied;
+
   const { id } = await params;
   deleteOffer(Number(id));
   return NextResponse.json({ ok: true });
