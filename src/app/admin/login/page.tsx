@@ -1,11 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 export default function AdminLoginPage() {
-  const router = useRouter();
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -18,14 +16,14 @@ export default function AdminLoginPage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ password }),
+      credentials: "same-origin",
     });
     setLoading(false);
     if (!res.ok) {
       setError("Incorrect password");
       return;
     }
-    router.push("/admin");
-    router.refresh();
+    window.location.href = "/admin";
   }
 
   return (

@@ -1,7 +1,8 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
 
-const COOKIE_NAME = "opendoor_admin";
+export const COOKIE_NAME = "opendoor_admin";
 
 function getSecret() {
   const secret = process.env.AUTH_SECRET;
@@ -11,21 +12,36 @@ function getSecret() {
   return new TextEncoder().encode(secret);
 }
 
-export async function createAdminSession() {
-  const token = await new SignJWT({ role: "admin" })
+export async function createAdminToken() {
+  return new SignJWT({ role: "admin" })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("7d")
     .sign(getSecret());
+}
 
-  const jar = await cookies();
-  jar.set(COOKIE_NAME, token, {
+export function adminCookieOptions() {
+  return {
     httpOnly: true,
-    sameSite: "lax",
+    sameSite: "lax" as const,
     secure: process.env.NODE_ENV === "production",
     path: "/",
     maxAge: 60 * 60 * 24 * 7,
+  };
+}
+
+export async function applyAdminSession(response: NextResponse) {
+  const token = await createAdminToken();
+  response.cookies.set(COOKIE_NAME, token, adminCookieOptions());
+  return response;
+}
+
+export async function clearAdminSessionResponse(response: NextResponse) {
+  response.cookies.set(COOKIE_NAME, "", {
+    ...adminCookieOptions(),
+    maxAge: 0,
   });
+  return response;
 }
 
 export async function clearAdminSession() {

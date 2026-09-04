@@ -48,7 +48,7 @@ export default function HomePage() {
           </div>
           <p className="fade-up-delay-2 mt-6 text-sm font-medium text-white/75">
             {offerCount} active offer{offerCount === 1 ? "" : "s"} · filter by
-            region coming next
+            Georgia region
           </p>
         </div>
 
