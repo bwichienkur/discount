@@ -3,6 +3,7 @@ import path from "node:path";
 import type { Business, Offer, OfferWithBusiness } from "./types";
 import {
   createSeedStore,
+  CURRENT_SEED_VERSION,
   isOfferCurrent,
   joinOffer,
   type Region,
@@ -55,8 +56,13 @@ export function getStore(): StoreData {
   }
 
   const fromDisk = readStoreFromDisk();
-  const store = fromDisk ?? createSeedStore();
-  if (!fromDisk) {
+  const needsReseed =
+    !fromDisk ||
+    typeof fromDisk.seedVersion !== "number" ||
+    fromDisk.seedVersion < CURRENT_SEED_VERSION;
+
+  const store = needsReseed ? createSeedStore() : fromDisk;
+  if (needsReseed) {
     writeStoreToDisk(store);
   }
   globalThis.__opendoorStore = store;
